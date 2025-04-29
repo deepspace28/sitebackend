@@ -3,13 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import base64
 import io
-from qiskit import QuantumCircuit, Aer, execute
+from qiskit import QuantumCircuit, BasicAer, execute
 from qiskit.visualization import plot_histogram, circuit_drawer
 import matplotlib.pyplot as plt
 
 app = FastAPI()
 
-# Enable CORS for all origins (useful for frontend integration)
+# Enable CORS for V0 or frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,20 +32,20 @@ async def simulate(req: SimulationRequest):
 
         qc = local_vars['qc']
 
-        # Simulate
-        backend = Aer.get_backend('qasm_simulator')
+        # ✅ Use BasicAer instead of Aer (works on Railway)
+        backend = BasicAer.get_backend('qasm_simulator')
         job = execute(qc, backend, shots=1024)
         result = job.result()
         counts = result.get_counts(qc)
 
-        # Circuit image
+        # Circuit diagram
         circuit_img = circuit_drawer(qc, output="mpl")
         buf_circuit = io.BytesIO()
         circuit_img.savefig(buf_circuit, format='png')
         buf_circuit.seek(0)
         circuit_base64 = base64.b64encode(buf_circuit.read()).decode('utf-8')
 
-        # Histogram image
+        # Histogram
         histogram = plot_histogram(counts)
         buf_hist = io.BytesIO()
         histogram.savefig(buf_hist, format='png')
@@ -60,3 +60,4 @@ async def simulate(req: SimulationRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
