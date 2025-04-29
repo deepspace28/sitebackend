@@ -1,4 +1,6 @@
+
 fastapi
 uvicorn
 qiskit==0.43.2
 matplotlib
+pylatexenc
