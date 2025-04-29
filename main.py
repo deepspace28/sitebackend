@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 app = FastAPI()
 
-# Allow frontend (V0.dev) to call this backend without CORS issues
+# Enable CORS for all origins (useful for frontend integration)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,7 +24,6 @@ class SimulationRequest(BaseModel):
 @app.post("/simulate")
 async def simulate(req: SimulationRequest):
     try:
-        # Execute the GPT-generated Qiskit code
         local_vars = {}
         exec(req.code, {}, local_vars)
 
@@ -33,20 +32,20 @@ async def simulate(req: SimulationRequest):
 
         qc = local_vars['qc']
 
-        # Simulate circuit
+        # Simulate
         backend = Aer.get_backend('qasm_simulator')
         job = execute(qc, backend, shots=1024)
         result = job.result()
         counts = result.get_counts(qc)
 
-        # Plot circuit diagram
+        # Circuit image
         circuit_img = circuit_drawer(qc, output="mpl")
         buf_circuit = io.BytesIO()
         circuit_img.savefig(buf_circuit, format='png')
         buf_circuit.seek(0)
         circuit_base64 = base64.b64encode(buf_circuit.read()).decode('utf-8')
 
-        # Plot histogram
+        # Histogram image
         histogram = plot_histogram(counts)
         buf_hist = io.BytesIO()
         histogram.savefig(buf_hist, format='png')
