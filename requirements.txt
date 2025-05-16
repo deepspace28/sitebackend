@@ -1,6 +1,8 @@
-pennylane
 fastapi
 uvicorn
-qiskit==0.43.2
+qiskit
+qiskit-ibm-runtime
 matplotlib
-pylatexenc
+pydantic
+pennylane
+
