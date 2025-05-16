@@ -1,4 +1,4 @@
-
+pennylane
 fastapi
 uvicorn
 qiskit==0.43.2
