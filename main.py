@@ -80,5 +80,20 @@ async def simulate(req: SimulationRequest):
                 ax.text(0.01, 0.5, drawing, fontsize=12, family='monospace')
             ax.axis('off')
             buf_circuit = io.BytesIO()
+            fig.savefig(buf_circuit, format='png')
+            buf_circuit.seek(0)
+            circuit_base64 = base64.b64encode(buf_circuit.read()).decode()
+
+            return {
+                "framework": "pennylane",
+                "circuit_image_base64": circuit_base64,
+                "qml_result": str(qml_result)
+            }
+
+        return {"error": "No recognized quantum circuit found in provided code."}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 
 
