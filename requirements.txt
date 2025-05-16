@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 qiskit
+qiskit-aer
 qiskit-ibm-runtime
 matplotlib
 pydantic
