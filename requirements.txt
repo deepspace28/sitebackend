@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-qiskit
+qiskit>=0.43.0
 qiskit-aer
 qiskit-ibm-runtime
 matplotlib
