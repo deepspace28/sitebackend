@@ -1,19 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
 import base64
 import io
+import matplotlib
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from qiskit import QuantumCircuit
-from qiskit_aer import Aer
-from qiskit_ibm_runtime import Sampler
+from qiskit.qasm import QasmError
 from qiskit.visualization import plot_histogram, circuit_drawer
+from qiskit_ibm_runtime import Sampler
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Quantum Circuit Simulator API"}
+app = FastAPI(title="Secure Quantum Circuit Simulator")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,42 +25,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+executor = ThreadPoolExecutor()
+
 class SimulationRequest(BaseModel):
-    code: str
+    qasm: str = Field(..., description="Quantum circuit in QASM format")
+    shots: Optional[int] = Field(1024, gt=0, le=8192, description="Number of shots for simulation")
+
+async def run_sampler_async(qc: QuantumCircuit, shots: int):
+    sampler = Sampler()
+    loop = asyncio.get_event_loop()
+    job = await loop.run_in_executor(executor, sampler.run, qc, shots)
+    return job.result()
+
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
+
+@app.get("/")
+async def root():
+    return {"message": "Secure Quantum Circuit Simulator API"}
 
 @app.post("/simulate")
-async def simulate(req: SimulationRequest):
+async def simulate(req: SimulationRequest) -> Dict[str, Any]:
     try:
-        local_vars = {}
-        exec(req.code, {}, local_vars)
+        # Parse QASM safely
+        qc = QuantumCircuit.from_qasm_str(req.qasm)
+    except QasmError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid QASM input: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error parsing circuit: {str(e)}")
 
-        if "qc" not in local_vars:
-            return {"error": "No QuantumCircuit named 'qc' found."}
-
-        qc = local_vars['qc']
-
-        sampler = Sampler()
-        job = sampler.run(qc, shots=1024)
-        result = job.result()
+    try:
+        result = await run_sampler_async(qc, req.shots)
         counts = result.quasi_dists[0]
 
         circuit_img = circuit_drawer(qc, output="mpl")
-        buf_circuit = io.BytesIO()
-        circuit_img.savefig(buf_circuit, format='png')
-        buf_circuit.seek(0)
-        circuit_base64 = base64.b64encode(buf_circuit.read()).decode('utf-8')
-
         histogram = plot_histogram(counts)
-        buf_hist = io.BytesIO()
-        histogram.savefig(buf_hist, format='png')
-        buf_hist.seek(0)
-        hist_base64 = base64.b64encode(buf_hist.read()).decode('utf-8')
 
         return {
-            "circuit_image_base64": circuit_base64,
-            "histogram_image_base64": hist_base64,
+            "circuit_image_base64": fig_to_base64(circuit_img),
+            "histogram_image_base64": fig_to_base64(histogram),
             "counts": counts
         }
-
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
