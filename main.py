@@ -9,7 +9,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from qiskit import QuantumCircuit
 from qiskit.visualization import plot_histogram, circuit_drawer
-from qiskit_ibm_runtime import Sampler
+from qiskit.primitives import Sampler
+
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
