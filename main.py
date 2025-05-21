@@ -8,7 +8,6 @@ import matplotlib
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from qiskit import QuantumCircuit
-from qiskit.qasm.exceptions import QasmError
 from qiskit.visualization import plot_histogram, circuit_drawer
 from qiskit_ibm_runtime import Sampler
 
@@ -40,6 +39,7 @@ async def run_sampler_async(qc: QuantumCircuit, shots: int):
 def fig_to_base64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format='png')
+    plt.close(fig)
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
@@ -50,12 +50,9 @@ async def root():
 @app.post("/simulate")
 async def simulate(req: SimulationRequest) -> Dict[str, Any]:
     try:
-        # Parse QASM safely
         qc = QuantumCircuit.from_qasm_str(req.qasm)
-    except QasmError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid QASM input: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error parsing circuit: {str(e)}")
+    except Exception as e:  # Broad catch for any parsing errors, including QasmError
+        raise HTTPException(status_code=400, detail=f"Invalid QASM input or parsing error: {str(e)}")
 
     try:
         result = await run_sampler_async(qc, req.shots)
@@ -71,4 +68,5 @@ async def simulate(req: SimulationRequest) -> Dict[str, Any]:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
 
