@@ -8,7 +8,7 @@ import matplotlib
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from qiskit import QuantumCircuit
-from qiskit.qasm import QasmError
+from qiskit.qasm.exceptions import QasmError
 from qiskit.visualization import plot_histogram, circuit_drawer
 from qiskit_ibm_runtime import Sampler
 
